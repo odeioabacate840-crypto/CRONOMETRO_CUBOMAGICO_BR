@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cronômetro DL</title>
+
+  <style>
+    body {
+      background-color: #00AEFF;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    #cronometro {
+      text-align: center;
+    }
+
+    #tempo {
+      position: absolute;
+      top: 40%;
+      transform: translateY(-50%);
+      text-align: center;
+      width: 100%;
+      font-size: 60px;
+    }
+
+    #embaralhamento {
+      position: absolute;
+      bottom: 50px;
+      text-align: center;
+      width: 100%;
+      color: orange;
+    }
+
+    #embaralhamento2 {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: yellow;
+      border: none;
+      padding: 10px;
+    }
+
+    #melhor {
+      text-align: center;
+    }
+
+    #excluirTempo {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+  
+  #desenvolvedores{
+    position: absolute;
+      bottom: 1px;
+      text-align: center;
+      width: 18%;
+  }
+  </style>
+</head>
+
+<body>
+
+  <h1 id="cronometro"> DL Cronômetro</h1>
+
+  <h1 id="tempo">00.00</h1>
+
+  <h4 id="embaralhamento">
+    R U2 F' L2 D R' U' B2 D2 F R2 U B' L U2 R' F2 D' L2 B
+  </h4>
+
+  <button id="embaralhamento2">
+    Próximo embaralhamento
+  </button>
+
+  <h3 id="melhor">Melhor tempo: --</h3>
+
+  <button id="excluirTempo">Excluir melhor tempo</button>
+  
+  
+  <h6 id="desenvolvedores">DEV.DLSITES E DEV.ENZO</h6>
+
+  <script>
+    const tempo = document.getElementById("tempo");
+    const melhor = document.getElementById("melhor");
+
+    let inicio = 0;
+    let intervalo = null;
+    let segurando = false;
+    let contando = false;
+
+    let melhorTempo =
+      Number(localStorage.getItem("melhorTempo")) || Infinity;
+
+    function formatar(ms) {
+      let centesimos = Math.floor(ms / 10);
+      let segundos = Math.floor(centesimos / 100);
+      let cent = centesimos % 100;
+
+      return String(segundos).padStart(2, "0") + "." +
+             String(cent).padStart(2, "0");
+    }
+
+    function atualizarMelhor() {
+      melhor.textContent = "Melhor tempo: " +
+        (melhorTempo === Infinity ? "--" : formatar(melhorTempo));
+    }
+
+    atualizarMelhor();
+
+    function pressionar() {
+      if (contando || segurando) return;
+
+      segurando = true;
+      tempo.style.color = "green";
+    }
+
+    function soltar() {
+      if (!segurando) return;
+
+      segurando = false;
+
+      if (!contando) {
+        contando = true;
+        inicio = Date.now();
+
+        tempo.style.color = "black";
+
+        intervalo = setInterval(() => {
+          tempo.textContent = formatar(Date.now() - inicio);
+        }, 10);
+      }
+    }
+
+    function parar() {
+      if (!contando) return;
+
+      contando = false;
+      clearInterval(intervalo);
+
+      let resultado = Date.now() - inicio;
+
+      tempo.textContent = formatar(resultado);
+
+      if (resultado < melhorTempo) {
+        melhorTempo = resultado;
+        localStorage.setItem("melhorTempo", melhorTempo);
+        atualizarMelhor();
+      }
+    }
+
+    // Teclado
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+
+        if (contando) {
+          parar();
+        } else {
+          pressionar();
+        }
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        soltar();
+      }
+    });
+
+    // Tela de toque e mouse
+    tempo.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+
+      if (contando) {
+        parar();
+      } else {
+        pressionar();
+      }
+    });
+
+    tempo.addEventListener("pointerup", (e) => {
+      e.preventDefault();
+      soltar();
+    });
+
+    tempo.addEventListener("pointercancel", soltar);
+
+    document.addEventListener("contextmenu", e => e.preventDefault());
+
+    // Excluir melhor tempo
+    document.getElementById("excluirTempo")
+      .addEventListener("click", () => {
+        melhorTempo = Infinity;
+        localStorage.removeItem("melhorTempo");
+        atualizarMelhor();
+      });
+
+    // Embaralhamentos
+    const movimentos = ["R", "L", "U", "D", "F", "B"];
+    const modificadores = ["", "'", "2"];
+
+    function novoEmbaralhamento() {
+      let scramble = [];
+
+      for (let i = 0; i < 20; i++) {
+        let movimento = movimentos[
+          Math.floor(Math.random() * movimentos.length)
+        ];
+
+        let modificador = modificadores[
+          Math.floor(Math.random() * modificadores.length)
+        ];
+
+        scramble.push(movimento + modificador);
+      }
+
+      document.getElementById("embaralhamento").textContent =
+        scramble.join(" ");
+    }
+
+    document.getElementById("embaralhamento2")
+      .addEventListener("click", novoEmbaralhamento);
+
+  </script>
+
+</body>
+</html>
