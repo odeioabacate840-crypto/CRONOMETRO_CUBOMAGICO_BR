@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cronômetro DL</title>
+  <title>Cronômetro 67</title>
 
   <style>
     body {
@@ -11,94 +11,110 @@
       user-select: none;
       -webkit-user-select: none;
       touch-action: manipulation;
+      margin: 0;
+      padding: 10px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      text-align: center;
+      font-family: sans-serif;
     }
 
-    #cronometro {
-      text-align: center;
-    }
+    /* Durante a contagem: some tudo, fica só o número */
+    body.contando { overflow: hidden; }
+    body.contando .esconder { visibility: hidden; }
 
     #tempo {
-      position: absolute;
-      top: 40%;
-      transform: translateY(-50%);
-      text-align: center;
-      width: 100%;
+      min-height: 40vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 60px;
+      margin: 0;
     }
 
-    #embaralhamento {
-      position: absolute;
-      bottom: 50px;
-      text-align: center;
-      width: 100%;
-      color: orange;
+    body.contando #tempo {
+      position: fixed;
+      inset: 0;
+      min-height: 100vh;
+      font-size: 80px;
     }
 
-    #embaralhamento2 {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: yellow;
-      border: none;
+    #embaralhamento { color: orange; }
+
+    button {
       padding: 10px;
-    }
-
-    #melhor {
-      text-align: center;
-    }
-
-    #excluirTempo {
-      display: block;
-      margin: 10px auto;
-      padding: 10px;
-      background-color: #ff4444;
-      color: white;
       border: none;
       border-radius: 5px;
+      margin: 5px;
+      font-size: 16px;
     }
-  
-  #desenvolvedores{
-    position: absolute;
-      bottom: 1px;
-      text-align: center;
-      width: 18%;
-  }
+
+    #embaralhamento2 { background-color: yellow; }
+
+    #excluirTempo, #excluirAtual {
+      background-color: #ff4444;
+      color: white;
+    }
+
+    #listaSolves {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 20px;
+    }
   </style>
 </head>
 
 <body>
 
-  <h1 id="cronometro"> DL Cronômetro</h1>
+  <h1 id="cronometro" class="esconder"><strong><i>Cronômetro DL</i></strong></h1>
 
   <h1 id="tempo">00.00</h1>
 
-  <h4 id="embaralhamento">
+  <h4 id="embaralhamento" class="esconder">
     R U2 F' L2 D R' U' B2 D2 F R2 U B' L U2 R' F2 D' L2 B
   </h4>
 
-  <button id="embaralhamento2">
-    Próximo embaralhamento
-  </button>
+  <div class="esconder">
+    <button id="embaralhamento2">Próximo embaralhamento</button>
+  </div>
 
-  <h3 id="melhor">Melhor tempo: --</h3>
+  <h3 id="melhor" class="esconder">Melhor tempo: --</h3>
+  <h3 id="pior" class="esconder">Pior tempo: --</h3>
 
-  <button id="excluirTempo">Excluir melhor tempo</button>
-  
-  
-  <h6 id="desenvolvedores">DEV.DLSITES E DEV.ENZO</h6>
+  <div class="esconder">
+    <button id="excluirAtual">Excluir tempo atual</button>
+    <button id="excluirTempo">Excluir melhor tempo</button>
+  </div>
+
+  <h5 id="desenvolvedores" class="esconder">DEVS: DL.SITES and ENZO</h5>
+
+  <h1 id="solves" class="esconder">SOLVES:</h1>
+  <ol id="listaSolves" class="esconder"></ol>
 
   <script>
     const tempo = document.getElementById("tempo");
     const melhor = document.getElementById("melhor");
+    const pior = document.getElementById("pior");
+    const lista = document.getElementById("listaSolves");
 
     let inicio = 0;
     let intervalo = null;
     let segurando = false;
     let contando = false;
+    let temAtual = false; // true logo depois de parar um solve
 
-    let melhorTempo =
-      Number(localStorage.getItem("melhorTempo")) || Infinity;
+    // Solves salvos (em ms)
+    let solves = [];
+    try {
+      solves = JSON.parse(localStorage.getItem("solves")) || [];
+    } catch (e) {
+      solves = [];
+    }
+
+    function salvar() {
+      localStorage.setItem("solves", JSON.stringify(solves));
+    }
 
     function formatar(ms) {
       let centesimos = Math.floor(ms / 10);
@@ -109,12 +125,25 @@
              String(cent).padStart(2, "0");
     }
 
-    function atualizarMelhor() {
-      melhor.textContent = "Melhor tempo: " +
-        (melhorTempo === Infinity ? "--" : formatar(melhorTempo));
+    function atualizarTela() {
+      if (solves.length === 0) {
+        melhor.textContent = "Melhor tempo: --";
+        pior.textContent = "Pior tempo: --";
+      } else {
+        melhor.textContent = "Melhor tempo: " + formatar(Math.min(...solves));
+        pior.textContent = "Pior tempo: " + formatar(Math.max(...solves));
+      }
+
+      // Lista: o mais recente em cima
+      lista.innerHTML = "";
+      for (let i = solves.length - 1; i >= 0; i--) {
+        const li = document.createElement("li");
+        li.textContent = (i + 1) + ". " + formatar(solves[i]);
+        lista.appendChild(li);
+      }
     }
 
-    atualizarMelhor();
+    atualizarTela();
 
     function pressionar() {
       if (contando || segurando) return;
@@ -130,9 +159,11 @@
 
       if (!contando) {
         contando = true;
+        temAtual = false;
         inicio = Date.now();
 
         tempo.style.color = "black";
+        document.body.classList.add("contando");
 
         intervalo = setInterval(() => {
           tempo.textContent = formatar(Date.now() - inicio);
@@ -145,16 +176,16 @@
 
       contando = false;
       clearInterval(intervalo);
+      document.body.classList.remove("contando");
 
       let resultado = Date.now() - inicio;
 
       tempo.textContent = formatar(resultado);
 
-      if (resultado < melhorTempo) {
-        melhorTempo = resultado;
-        localStorage.setItem("melhorTempo", melhorTempo);
-        atualizarMelhor();
-      }
+      solves.push(resultado);
+      temAtual = true;
+      salvar();
+      atualizarTela();
     }
 
     // Teclado
@@ -178,31 +209,55 @@
     });
 
     // Tela de toque e mouse
-    tempo.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-
+    // Contando: tocar em QUALQUER lugar da tela para
+    document.addEventListener("pointerdown", (e) => {
       if (contando) {
+        e.preventDefault();
         parar();
-      } else {
+      } else if (e.target === tempo) {
+        e.preventDefault();
         pressionar();
       }
     });
 
-    tempo.addEventListener("pointerup", (e) => {
-      e.preventDefault();
-      soltar();
+    document.addEventListener("pointerup", (e) => {
+      if (segurando) {
+        e.preventDefault();
+        soltar();
+      }
     });
 
-    tempo.addEventListener("pointercancel", soltar);
+    document.addEventListener("pointercancel", () => {
+      if (segurando) {
+        segurando = false;
+        tempo.style.color = "black";
+      }
+    });
 
     document.addEventListener("contextmenu", e => e.preventDefault());
+
+    // Excluir tempo atual (o último solve)
+    document.getElementById("excluirAtual")
+      .addEventListener("click", () => {
+        if (!temAtual || solves.length === 0) return;
+
+        solves.pop();
+        temAtual = false;
+        tempo.textContent = "00.00";
+        salvar();
+        atualizarTela();
+      });
 
     // Excluir melhor tempo
     document.getElementById("excluirTempo")
       .addEventListener("click", () => {
-        melhorTempo = Infinity;
-        localStorage.removeItem("melhorTempo");
-        atualizarMelhor();
+        if (solves.length === 0) return;
+
+        const i = solves.indexOf(Math.min(...solves));
+        solves.splice(i, 1);
+        temAtual = false;
+        salvar();
+        atualizarTela();
       });
 
     // Embaralhamentos
